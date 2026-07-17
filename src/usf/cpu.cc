@@ -656,8 +656,29 @@ void StartEmulationFromSave(void *savestate)
 
 void RefreshScreen(void)
 {
-    ChangeTimer(ViTimer, 300000);
+    static uint32_t OLD_VI_V_SYNC_REG = 0, VI_INTR_TIME = 500000;
 
+    if (OLD_VI_V_SYNC_REG != VI_V_SYNC_REG) {
+	OLD_VI_V_SYNC_REG = VI_V_SYNC_REG;
+	if (VI_V_SYNC_REG == 0) {
+	    VI_INTR_TIME = 500000;
+	} else {
+	    VI_INTR_TIME = (VI_V_SYNC_REG + 1) * 1500;
+	}
+    }
+
+    ChangeTimer(ViTimer,
+		Timers->Timer + Timers->NextTimer[ViTimer] + VI_INTR_TIME);
+
+    if ((VI_STATUS_REG & 0x10) != 0) {
+	if (ViFieldNumber == 0) {
+	    ViFieldNumber = 1;
+	} else {
+	    ViFieldNumber = 0;
+	}
+    } else {
+	ViFieldNumber = 0;
+    }
 }
 
 void RunRsp(void)
