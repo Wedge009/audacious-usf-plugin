@@ -33,6 +33,14 @@ void USFPlugin::cleanup (){
 }
 
 bool USFPlugin::is_our_file (const char * filename, VFSFile & file){
+    // LoadUSF() writes into the global savestatespace buffer whenever the
+    // file has an embedded savestate section (true of every real USF/miniusf
+    // file), so it must not run without PreAllocate_Memory() first having
+    // allocated that buffer - otherwise it writes through a null pointer.
+    if (!PreAllocate_Memory()) {
+	Release_Memory();
+	return false;
+    }
     if (!LoadUSF(filename, &file)) {
 	Release_Memory();
 	return false;
