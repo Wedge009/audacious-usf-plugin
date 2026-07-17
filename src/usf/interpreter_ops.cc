@@ -340,8 +340,9 @@ void r4300i_LW(void)
 {
     uint32_t Address = GPR[Opcode.base].UW[0] + (int16_t) Opcode.offset;
 
-
-//      if ((Address & 3) != 0) { ADDRESS_ERROR_EXCEPTION(Address,1); }
+    if ((Address & 3) != 0) {
+	ADDRESS_ERROR_EXCEPTION(Address, 1);
+    }
 
     if (Opcode.rt == 0) {
 	return;
