@@ -2109,7 +2109,7 @@ int32_t r4300i_SW_NonMemory(uint32_t PAddr, uint32_t Value)
 	    break;
 	case 0x04500010:
 	    AI_DACRATE_REG = Value;
-	    //if (AiDacrateChanged != NULL) { AiDacrateChanged(SYSTEM_NTSC); }
+	    context->ai_dacrate_changed(AI_DACRATE_REG);
 	    break;
 	case 0x04500014:
 	    AI_BITRATE_REG = Value;
