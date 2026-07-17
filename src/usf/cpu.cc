@@ -725,7 +725,7 @@ void TimerDone(void)
     case CompareTimer:
 	if (enablecompare)
 	    FAKE_CAUSE_REGISTER |= CAUSE_IP7;
-	//CheckInterrupts();
+	CheckInterrupts();
 	ChangeCompareTimer();
 	break;
     case ViTimer:
@@ -739,7 +739,7 @@ void TimerDone(void)
 	ChangeTimer(AiTimer, 0);
 	AI_STATUS_REG = 0;
 	AudioIntrReg |= 4;
-	//CheckInterrupts();
+	CheckInterrupts();
 	break;
     }
     CheckTimer();
