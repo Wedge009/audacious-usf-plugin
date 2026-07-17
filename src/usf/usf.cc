@@ -40,6 +40,11 @@ uint32_t usf_length = 0, usf_fade_length = 0;
 int8_t title[100];
 uint8_t title_format[] = "%game% - %title%";
 
+// Identity of whatever file most recently populated ROMPages[], used to
+// decide whether it's safe to reuse those pages for the next track's ROM
+// data instead of reallocating them from scratch. See LoadUSF().
+static char LastRomSourcePath[1024] = {0};
+
 extern int32_t RSP_Cpu;
 
 uint32_t get_length_from_string(uint8_t * str_length)
@@ -225,6 +230,29 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
 
     if (temp == 0x34365253) {	//there is a rom section
 	int len = 0, start = 0;
+
+	// ROMPages[] is reused across tracks (see PreAllocate_Memory()) to
+	// avoid a malloc/free cycle on every single track. That's only safe
+	// when successive tracks share the same underlying ROM data - true
+	// for tracks from the same game/soundtrack (the overwhelmingly
+	// common case), since they reload the exact same bytes from the
+	// same shared _lib file every time anyway. If the source providing
+	// ROM data here is different from last time (a different game, or
+	// switching to/from a self-contained file with its own embedded ROM
+	// section), pages left over from that other source could still be
+	// holding stale, unrelated ROM bytes in any range the current file
+	// doesn't itself overwrite - so start clean instead of risking that.
+	if (strcmp(fn, LastRomSourcePath)) {
+	    for (int page = 0; page < 0x400; page++) {
+		if (ROMPages[page]) {
+		    free(ROMPages[page]);
+		    ROMPages[page] = 0;
+		}
+	    }
+	    strncpy(LastRomSourcePath, fn, sizeof(LastRomSourcePath) - 1);
+	    LastRomSourcePath[sizeof(LastRomSourcePath) - 1] = 0;
+	}
+
 	usf_fread(&len, 4, 1, fil);
 
 	while (len) {
@@ -272,7 +300,11 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
 
     if (*(uint32_t *) (savestatespace + 4) == 0x400000) {
 	RdramSize = 0x400000;
-	savestatespace = (uint8_t*)realloc(savestatespace, 0x40275c);
+	// savestatespace is no longer shrunk here: PreAllocate_Memory() now
+	// reuses this buffer across tracks (at its full 0x80275C size) to
+	// avoid a malloc/free cycle on every track, so there is no benefit
+	// to reallocating it smaller only to grow it back on the next track
+	// that needs the full size.
     } else if (*(uint32_t *) (savestatespace + 4) == 0x800000)
 	RdramSize = 0x800000;
 
@@ -360,7 +392,7 @@ bool usf_play(USFPlugin* context, const gchar * filename, VFSFile* file)
 	while (fake_seek_stopping != 2)
 	    usleep(1);
 	fake_seek_stopping = 4;
-	
+
     }
 
     Release_Memory();

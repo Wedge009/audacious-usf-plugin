@@ -52,6 +52,7 @@ extern uint8_t EmptySpace;
 int Allocate_ROM(void);
 int Allocate_Memory(void);
 void Release_Memory(void);
+void Release_Memory_Buffers(void);
 int PreAllocate_Memory(void);
 void *malloc_exec(uint32_t bytes);
 void *jmalloc(uint32_t bytes);

@@ -97,9 +97,28 @@ void *malloc_exec(uint32_t bytes)
 }
 
 
+static uint32_t AllocatedRdramSize = 0;
+
 int32_t Allocate_Memory(void)
 {
     //RdramSize = 0x800000;
+
+    // Reuse the previous track's mmap'd buffers (RDRAM, JIT code, jump
+    // tables, TLB map) when the RAM size matches, instead of doing a fresh
+    // mmap/munmap cycle - tens of megabytes including executable JIT memory
+    // - on every single track. StartEmulationFromSave() already re-zeroes
+    // everything it needs, so a stale mapping from the last track is safe to
+    // reuse. Ordinary audio decoders never do this kind of large, repeated
+    // memory-mapping churn per track; this plugin doing so on very short
+    // tracks was suspected of triggering an OS/threading-level race.
+    if (MemChunk != 0 && AllocatedRdramSize == RdramSize) {
+	MemoryState = 1;
+	return 1;
+    }
+
+    if (MemChunk != 0) {
+	Release_Memory_Buffers();
+    }
 
     // Allocate the N64MEM and TLB_Map so that they are in each others 4GB range
     // Also put the registers there :)
@@ -176,44 +195,49 @@ int32_t Allocate_Memory(void)
     RDRAM = (uint8_t *) (N64MEM);
     IMEM = DMEM + 0x1000;
 
+    AllocatedRdramSize = RdramSize;
     MemoryState = 1;
 
     return 1;
 }
 
+static uint32_t AllocatedSavestateSize = 0;
+
 int PreAllocate_Memory(void)
 {
-    int i = 0;
-
-    // Moved the savestate allocation here :)  (for better management later)
-    savestatespace = (uint8_t*)malloc(0x80275C);
-
-    if (savestatespace == 0)
-	return 0;
+    // Reuse the previous track's savestate buffer and already-populated
+    // ROM pages instead of malloc'ing/freeing them - up to ~8MB plus one
+    // 64KB allocation per ROM page - on every single track. LoadUSF()
+    // always overwrites whatever bytes it needs for the file being loaded,
+    // so stale content left over from the last track is harmless; ROMPages
+    // in particular usually hold the exact same underlying game ROM data
+    // across tracks anyway (reloaded from the same shared .usflib each
+    // time). ROMPages[] is a global array, so it starts out all-null on
+    // first use without needing an explicit reset here.
+    if (savestatespace == 0 || AllocatedSavestateSize < 0x80275C) {
+	// LoadUSF() may have realloc'd this down to 0x40275c for a smaller
+	// RAM size on the previous track; make sure we have the full size
+	// available again before it gets used for a potentially larger one.
+	uint8_t *resized = (uint8_t*)realloc(savestatespace, 0x80275C);
+	if (resized == 0)
+	    return 0;
+	savestatespace = resized;
+	AllocatedSavestateSize = 0x80275C;
+    }
 
     memset(savestatespace, 0, 0x80275C);
-
-    for (i = 0; i < 0x400; i++) {
-	ROMPages[i] = 0;
-    }
 
     return 1;
 }
 
-void Release_Memory(void)
+// Actually tears down the large mmap'd/malloc'd emulator buffers (RDRAM,
+// JIT code and jump tables, TLB map). Only called when the required RAM
+// size has changed (rare) - see Allocate_Memory(). Do not call this after
+// every track; that reintroduces the tens-of-megabytes-including-executable-
+// JIT-memory mmap/munmap churn per track that Allocate_Memory()'s reuse
+// path exists to avoid.
+void Release_Memory_Buffers(void)
 {
-    uint32_t i;
-
-    for (i = 0; i < 0x400; i++) {
-	if (ROMPages[i]) {
-	    free(ROMPages[i]);
-	    ROMPages[i] = 0;
-	}
-    }
-    printf("Freeing memory\n");
-
-    MemoryState = 0;
-
     if (MemChunk != 0) {
 	munmap(MemChunk, 0x100000 * sizeof(uintptr_t));
 	MemChunk = 0;
@@ -243,21 +267,19 @@ void Release_Memory(void)
 	munmap(RSPRecompCode, RSP_RECOMPMEM_SIZE + RSP_SECRECOMPMEM_SIZE);
 	RSPRecompCode = NULL;
     }
-
     if (RSPJumpTables != NULL) {
 	free(RSPJumpTables);
 	RSPJumpTables = NULL;
     }
-    if (JumpTable != NULL) {
-	free(JumpTable);
-	JumpTable = NULL;
-    }
+}
 
-
-    if (savestatespace)
-	free(savestatespace);
-    savestatespace = NULL;
-
+void Release_Memory(void)
+{
+    // ROMPages[] and savestatespace are intentionally left allocated here
+    // for PreAllocate_Memory() to reuse on the next track (see there for
+    // why) - this is not a leak, they're freed at process exit along with
+    // everything else.
+    MemoryState = 0;
 }
 
 

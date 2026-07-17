@@ -1152,7 +1152,12 @@ int32_t init_rsp(void)
     Compiler.bAccum = 1;
     Compiler.bGPRConstants = 1;
 
-    if (!fake_seek_stopping) {
+    // RSPAllocateMemory() mmaps a fresh executable JIT buffer and jump table
+    // on every call; its sizes are fixed constants, not dependent on the ROM
+    // or savestate being loaded, so once allocated it can always be reused
+    // (re-zeroed via RSPReInitMemory()) rather than mmap'd/freed on every
+    // single track.
+    if (!fake_seek_stopping && RSPRecompCode == NULL) {
 	RSPAllocateMemory();
     } else {
 	RSPReInitMemory();
