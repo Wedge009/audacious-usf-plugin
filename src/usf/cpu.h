@@ -76,6 +76,7 @@ void InPermLoop(void);
 void InitiliazeCPUFlags(void);
 void RefreshScreen(void);
 void RunRsp(void);
+void StartAiInterrupt(void);
 void StartEmulation(void);
 void TimerDone(void);
 void RecompileTimerDone(void);

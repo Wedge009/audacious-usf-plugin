@@ -554,9 +554,11 @@ uint32_t Machine_LoadStateFromRAM(void *savestatespace)
     AI_STATUS_REG = 0;
     context->ai_dacrate_changed(AI_DACRATE_REG);
 
-//      StartAiInterrupt();
+    StartAiInterrupt();
 
     SetFpuLocations();		// important if FR=1
+
+    CheckInterrupts();
 
     return 1;
 }
@@ -679,6 +681,20 @@ void RefreshScreen(void)
     } else {
 	ViFieldNumber = 0;
     }
+}
+
+void StartAiInterrupt(void)
+{
+    const float VSyncTiming = 789000.0f;
+    double BytesPerSecond = 48681812.0 / (AI_DACRATE_REG + 1) * 4;
+    double CountsPerSecond = (double) (((double) VSyncTiming) * (double) 60.0);
+    double CountsPerByte = (double) CountsPerSecond / BytesPerSecond;
+    uint32_t IntScheduled = (uint32_t) ((double) AI_LEN_REG * CountsPerByte);
+
+    if (!AI_LEN_REG)
+	return;
+
+    ChangeTimer(AiTimer, IntScheduled);
 }
 
 void RunRsp(void)
