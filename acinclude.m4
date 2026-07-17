@@ -81,12 +81,12 @@ AC_REQUIRE([AC_C_BIGENDIAN])
 AC_REQUIRE([AC_SYS_LARGEFILE])
 
 if test "x$GCC" = "xyes"; then
-    CFLAGS="$CFLAGS -std=gnu99 -ffast-math -Wall -pipe"
+    CFLAGS="$CFLAGS -std=gnu99 -Wall -pipe"
     if test "x$HAVE_DARWIN" = "xyes"; then
-        CXXFLAGS="$CXXFLAGS -stdlib=libc++ -std=gnu++11 -ffast-math -Wall -pipe"
+        CXXFLAGS="$CXXFLAGS -stdlib=libc++ -std=gnu++11 -Wall -pipe"
         LDFLAGS="$LDFLAGS -lc++ -stdlib=libc++"
     else
-        CXXFLAGS="$CXXFLAGS -std=gnu++11 -ffast-math -Wall -pipe"
+        CXXFLAGS="$CXXFLAGS -std=gnu++11 -Wall -pipe"
     fi
     AUD_CHECK_CFLAGS(-Wtype-limits)
     AUD_CHECK_CXXFLAGS(-Woverloaded-virtual)

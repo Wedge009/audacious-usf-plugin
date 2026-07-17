@@ -26,7 +26,6 @@ extern int SampleRate;
 //extern InputPlugin usf_ip;
 USFPlugin *pcontext = 0;
 
-void usf_mseek(USFPlugin * context, gint millisecond);
 int8_t filename[512];
 uint32_t cpu_running = 0, use_interpreter = 0, use_audiohle =
     0, is_paused = 0, cpu_stopped = 1, fake_seek_stopping = 0;
@@ -284,7 +283,7 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
 bool usf_init()
 {
     use_audiohle = 0;
-    use_interpreter = 1;
+    use_interpreter = 0;
     RSP_Cpu = 0;		// 0 is recompiler, 1 is interpreter
 
     return true;
@@ -303,25 +302,22 @@ void usf_seek(USFPlugin * context, gint time)
 
 void usf_mseek(USFPlugin * context, gint millisecond)
 {
+    is_seeking = 1;
+    seek_time = (double) millisecond;
+
     if (millisecond < play_time) {
+	// There is no way to seek backwards within the emulated audio
+	// stream, so restart emulation from the savestate and silently
+	// fast-forward (via is_seeking/seek_time) up to the requested
+	// position. add_buffer() runs on the same thread as the CPU
+	// emulation loop, so we cannot block here waiting for cpu_stopped;
+	// instead, set fake_seek_stopping so usf_play()'s loop restarts
+	// StartEmulationFromSave() once this call unwinds and the
+	// interpreter loop exits on its own.
 	is_paused = 0;
-
-	fake_seek_stopping = 1;
-	CloseCpu();
-
-	while (!cpu_stopped)
-	    usleep(1);
-
-	is_seeking = 1;
-	seek_time = (double) millisecond;
-
 	fake_seek_stopping = 2;
-    } else {
-	is_seeking = 1;
-	seek_time = (double) millisecond;
+	CloseCpu();
     }
-#warning "NOOOOOOOO"
-    /////////////////////////////////////    context->output->flush(millisecond / 1000);
 }
 
 bool usf_play(USFPlugin* context, const gchar * filename, VFSFile* file)

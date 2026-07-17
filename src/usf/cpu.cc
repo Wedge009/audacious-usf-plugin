@@ -554,9 +554,11 @@ uint32_t Machine_LoadStateFromRAM(void *savestatespace)
     AI_STATUS_REG = 0;
     context->ai_dacrate_changed(AI_DACRATE_REG);
 
-//      StartAiInterrupt();
+    StartAiInterrupt();
 
     SetFpuLocations();		// important if FR=1
+
+    CheckInterrupts();
 
     return 1;
 }
@@ -581,7 +583,7 @@ void StartEmulationFromSave(void *savestate)
 	memset(DelaySlotTable, 0, ((0x1000000) >> 0xA));
     }
 
-    memset(CPU_Action, 0, sizeof(CPU_Action));
+    memset(CPU_Action, 0, sizeof(*CPU_Action));
     WrittenToRom = 0;
 
     InitilizeTLB();
@@ -609,23 +611,18 @@ void StartEmulationFromSave(void *savestate)
 
     SampleRate = 48681812 / (AI_DACRATE_REG + 1);
 
-    context->open_sound();
+    // Only (re)open the output stream on the very first start of this track.
+    // fake_seek_stopping is still nonzero here when we're restarting
+    // emulation after a backward seek (it isn't cleared until below); Audacious
+    // treats a fresh open_audio() as the start of a new stream and resets its
+    // displayed playback position to 0, which would make the progress bar
+    // jump back to the beginning even though play_time/seek_time have already
+    // fast-forwarded past the seek target.
+    if (!fake_seek_stopping) {
+	context->open_sound();
+    }
 
     ///////////////////////////////////////////////  pcontext->set_params(pcontext, SampleRate * 4, SampleRate, 2);
-
-    if (enableFIFOfull) {
-	const float VSyncTiming = 789000.0f;
-	double BytesPerSecond = 48681812.0 / (AI_DACRATE_REG + 1) * 4;
-	double CountsPerSecond =
-	    (double) (((double) VSyncTiming) * (double) 60.0);
-	double CountsPerByte =
-	    (double) CountsPerSecond / (double) BytesPerSecond;
-	uint32_t IntScheduled =
-	    (uint32_t) ((double) AI_LEN_REG * CountsPerByte);
-
-	ChangeTimer(AiTimer, IntScheduled);
-	AI_STATUS_REG |= 0x40000000;
-    }
 
     cpu_stopped = 0;
     cpu_running = 1;
@@ -647,8 +644,43 @@ void StartEmulationFromSave(void *savestate)
 
 void RefreshScreen(void)
 {
-    ChangeTimer(ViTimer, 300000);
+    static uint32_t OLD_VI_V_SYNC_REG = 0, VI_INTR_TIME = 500000;
 
+    if (OLD_VI_V_SYNC_REG != VI_V_SYNC_REG) {
+	OLD_VI_V_SYNC_REG = VI_V_SYNC_REG;
+	if (VI_V_SYNC_REG == 0) {
+	    VI_INTR_TIME = 500000;
+	} else {
+	    VI_INTR_TIME = (VI_V_SYNC_REG + 1) * 1500;
+	}
+    }
+
+    ChangeTimer(ViTimer,
+		Timers->Timer + Timers->NextTimer[ViTimer] + VI_INTR_TIME);
+
+    if ((VI_STATUS_REG & 0x10) != 0) {
+	if (ViFieldNumber == 0) {
+	    ViFieldNumber = 1;
+	} else {
+	    ViFieldNumber = 0;
+	}
+    } else {
+	ViFieldNumber = 0;
+    }
+}
+
+void StartAiInterrupt(void)
+{
+    const float VSyncTiming = 789000.0f;
+    double BytesPerSecond = 48681812.0 / (AI_DACRATE_REG + 1) * 4;
+    double CountsPerSecond = (double) (((double) VSyncTiming) * (double) 60.0);
+    double CountsPerByte = (double) CountsPerSecond / BytesPerSecond;
+    uint32_t IntScheduled = (uint32_t) ((double) AI_LEN_REG * CountsPerByte);
+
+    if (!AI_LEN_REG)
+	return;
+
+    ChangeTimer(AiTimer, IntScheduled);
 }
 
 void RunRsp(void)
@@ -716,7 +748,7 @@ void TimerDone(void)
     case CompareTimer:
 	if (enablecompare)
 	    FAKE_CAUSE_REGISTER |= CAUSE_IP7;
-	//CheckInterrupts();
+	CheckInterrupts();
 	ChangeCompareTimer();
 	break;
     case ViTimer:
@@ -730,7 +762,7 @@ void TimerDone(void)
 	ChangeTimer(AiTimer, 0);
 	AI_STATUS_REG = 0;
 	AudioIntrReg |= 4;
-	//CheckInterrupts();
+	CheckInterrupts();
 	break;
     }
     CheckTimer();

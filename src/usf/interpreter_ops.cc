@@ -340,8 +340,9 @@ void r4300i_LW(void)
 {
     uint32_t Address = GPR[Opcode.base].UW[0] + (int16_t) Opcode.offset;
 
-
-//      if ((Address & 3) != 0) { ADDRESS_ERROR_EXCEPTION(Address,1); }
+    if ((Address & 3) != 0) {
+	ADDRESS_ERROR_EXCEPTION(Address, 1);
+    }
 
     if (Opcode.rt == 0) {
 	return;
@@ -1253,12 +1254,12 @@ void r4300i_COP1_BCTL(void)
 /************************** COP1: S functions ************************/
 void Float_RoundToInteger32(int32_t * Dest, float *Source)
 {
-    *Dest = (int32_t) * Source;
+    asm volatile ("flds %1\n\tfistpl %0":"=m" (*Dest):"m"(*Source));
 }
 
 void Float_RoundToInteger64(int64_t * Dest, float *Source)
 {
-    *Dest = (int64_t) * Source;
+    asm volatile ("flds %1\n\tfistpll %0":"=m" (*Dest):"m"(*Source));
 }
 
 void r4300i_COP1_S_ADD(void)
@@ -1324,7 +1325,7 @@ void r4300i_COP1_S_NEG(void)
 void r4300i_COP1_S_TRUNC_L(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_CHOP,_MCW_RC);
+	controlfp(_FPU_RC_ZERO);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1332,7 +1333,7 @@ void r4300i_COP1_S_TRUNC_L(void)
 void r4300i_COP1_S_CEIL_L(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_UP,_MCW_RC);
+	controlfp(_FPU_RC_UP);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1340,7 +1341,7 @@ void r4300i_COP1_S_CEIL_L(void)
 void r4300i_COP1_S_FLOOR_L(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_DOWN,_MCW_RC);
+	controlfp(_FPU_RC_DOWN);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1348,7 +1349,7 @@ void r4300i_COP1_S_FLOOR_L(void)
 void r4300i_COP1_S_ROUND_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_NEAREST,_MCW_RC);
+	controlfp(_FPU_RC_NEAREST);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1356,7 +1357,7 @@ void r4300i_COP1_S_ROUND_W(void)
 void r4300i_COP1_S_TRUNC_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_CHOP,_MCW_RC);
+	controlfp(_FPU_RC_ZERO);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1364,7 +1365,7 @@ void r4300i_COP1_S_TRUNC_W(void)
 void r4300i_COP1_S_CEIL_W(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_UP,_MCW_RC);
+	controlfp(_FPU_RC_UP);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1372,7 +1373,7 @@ void r4300i_COP1_S_CEIL_W(void)
 void r4300i_COP1_S_FLOOR_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_DOWN,_MCW_RC);
+	controlfp(_FPU_RC_DOWN);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1407,8 +1408,7 @@ void r4300i_COP1_S_CMP(void)
 	Temp0 = *(float *) FPRFloatLocation[Opcode.fs];
     Temp1 = *(float *) FPRFloatLocation[Opcode.ft];
 
-    if (0) {
-	//if (_isnan(Temp0) || _isnan(Temp1)) {
+    if (isnan(Temp0) || isnan(Temp1)) {
 	less = 0;
 	equal = 0;
 	unorded = 1;
@@ -1436,12 +1436,12 @@ void r4300i_COP1_S_CMP(void)
 /************************** COP1: D functions ************************/
 void Double_RoundToInteger32(int32_t * Dest, double *Source)
 {
-    *Dest = (int32_t) * Source;
+    asm volatile ("fldl %1\n\tfistpl %0":"=m" (*Dest):"m"(*Source));
 }
 
 void Double_RoundToInteger64(int64_t * Dest, double *Source)
 {
-    *Dest = (int64_t) * Source;
+    asm volatile ("fldl %1\n\tfistpll %0":"=m" (*Dest):"m"(*Source));
 }
 
 void r4300i_COP1_D_ADD(void)
@@ -1583,8 +1583,7 @@ void r4300i_COP1_D_CMP(void)
 	Temp0.DW = *(int64_t *) FPRDoubleLocation[Opcode.fs];
     Temp1.DW = *(int64_t *) FPRDoubleLocation[Opcode.ft];
 
-    if (0) {
-	//if (_isnan(Temp0.D) || _isnan(Temp1.D)) {
+    if (isnan(Temp0.D) || isnan(Temp1.D)) {
 	less = 0;
 	equal = 0;
 	unorded = 1;

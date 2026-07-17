@@ -60,14 +60,6 @@ bool USFPlugin::play (const char * filename, VFSFile & file){
 
 void USFPlugin::open_sound(){
     open_audio(FMT_S16_NE, SampleRate, 2);
-    /*
-    if (open_audio(FMT_S16_NE, SampleRate, 2)) {
-	cpu_running = 0;
-	printf("Fail Starting audio\n");
-	g_thread_exit(NULL);
-    } else {
-    }
-    */
 }
 
 void USFPlugin::add_buffer(unsigned char *buf, unsigned int length){
@@ -76,9 +68,11 @@ void USFPlugin::add_buffer(unsigned char *buf, unsigned int length){
 		return;
 	}
 
-    if(check_seek() != -1){        
+    int seek_ms = check_seek();
+    if (seek_ms != -1) {
+	usf_mseek(this, seek_ms);
     }
-	
+
     int32_t i = 0, out = 0;
     double vol = 1.0;
 
@@ -130,25 +124,11 @@ void USFPlugin::ai_len_changed(){
 
     add_buffer(RDRAM + address, length);
 
-    if (length && !(AI_STATUS_REG & 0x80000000)) {
-	const float VSyncTiming = 789000.0f;
-	double BytesPerSecond = 48681812.0 / (AI_DACRATE_REG + 1) * 4;
-	double CountsPerSecond =
-	    (double) ((((double) VSyncTiming) * (double) 60.0)) * 2.0;
-	double CountsPerByte =
-	    (double) CountsPerSecond / (double) BytesPerSecond;
-	unsigned int IntScheduled =
-	    (unsigned int) ((double) AI_LEN_REG * CountsPerByte);
-
-	ChangeTimer(AiTimer, IntScheduled);
-    }
-
     if (enableFIFOfull) {
-	if (AI_STATUS_REG & 0x40000000)
-	    AI_STATUS_REG |= 0x80000000;
+	AI_STATUS_REG |= 0x40000000;
     }
 
-    AI_STATUS_REG |= 0x40000000;
+    StartAiInterrupt();
 
 }
 
