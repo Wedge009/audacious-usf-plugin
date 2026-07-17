@@ -1399,6 +1399,24 @@ void r4300i_COP1_S_CVT_L(void)
 			   &*(float *) FPRFloatLocation[Opcode.fs]);
 }
 
+/* -ffast-math implies -ffinite-math-only, under which gcc constant-folds
+ * isnan()/__builtin_isnan() to always false, so a real IEEE754 bit-pattern
+ * check is used here instead of the standard library function. */
+static int32_t f32_is_nan(float f)
+{
+    uint32_t bits;
+    __builtin_memcpy(&bits, &f, sizeof(bits));
+    return ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+}
+
+static int32_t f64_is_nan(double d)
+{
+    uint64_t bits;
+    __builtin_memcpy(&bits, &d, sizeof(bits));
+    return ((bits & 0x7FF0000000000000ULL) == 0x7FF0000000000000ULL)
+	&& ((bits & 0x000FFFFFFFFFFFFFULL) != 0);
+}
+
 void r4300i_COP1_S_CMP(void)
 {
     int32_t less, equal, unorded, condition;
@@ -1408,8 +1426,7 @@ void r4300i_COP1_S_CMP(void)
 	Temp0 = *(float *) FPRFloatLocation[Opcode.fs];
     Temp1 = *(float *) FPRFloatLocation[Opcode.ft];
 
-    if (0) {
-	//if (_isnan(Temp0) || _isnan(Temp1)) {
+    if (f32_is_nan(Temp0) || f32_is_nan(Temp1)) {
 	less = 0;
 	equal = 0;
 	unorded = 1;
@@ -1584,8 +1601,7 @@ void r4300i_COP1_D_CMP(void)
 	Temp0.DW = *(int64_t *) FPRDoubleLocation[Opcode.fs];
     Temp1.DW = *(int64_t *) FPRDoubleLocation[Opcode.ft];
 
-    if (0) {
-	//if (_isnan(Temp0.D) || _isnan(Temp1.D)) {
+    if (f64_is_nan(Temp0.D) || f64_is_nan(Temp1.D)) {
 	less = 0;
 	equal = 0;
 	unorded = 1;
