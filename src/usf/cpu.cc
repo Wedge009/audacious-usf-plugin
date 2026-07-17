@@ -624,20 +624,6 @@ void StartEmulationFromSave(void *savestate)
 
     ///////////////////////////////////////////////  pcontext->set_params(pcontext, SampleRate * 4, SampleRate, 2);
 
-    if (enableFIFOfull) {
-	const float VSyncTiming = 789000.0f;
-	double BytesPerSecond = 48681812.0 / (AI_DACRATE_REG + 1) * 4;
-	double CountsPerSecond =
-	    (double) (((double) VSyncTiming) * (double) 60.0);
-	double CountsPerByte =
-	    (double) CountsPerSecond / (double) BytesPerSecond;
-	uint32_t IntScheduled =
-	    (uint32_t) ((double) AI_LEN_REG * CountsPerByte);
-
-	ChangeTimer(AiTimer, IntScheduled);
-	AI_STATUS_REG |= 0x40000000;
-    }
-
     cpu_stopped = 0;
     cpu_running = 1;
     fake_seek_stopping = 0;

@@ -124,16 +124,11 @@ void USFPlugin::ai_len_changed(){
 
     add_buffer(RDRAM + address, length);
 
-    if (length && !(AI_STATUS_REG & 0x80000000)) {
-	StartAiInterrupt();
-    }
-
     if (enableFIFOfull) {
-	if (AI_STATUS_REG & 0x40000000)
-	    AI_STATUS_REG |= 0x80000000;
+	AI_STATUS_REG |= 0x40000000;
     }
 
-    AI_STATUS_REG |= 0x40000000;
+    StartAiInterrupt();
 
 }
 
