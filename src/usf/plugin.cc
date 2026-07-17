@@ -147,11 +147,15 @@ void USFPlugin::add_buffer(unsigned char *buf, unsigned int length){
 
     usf_playing = play_time < (track_time + fade_time);
 
-    write_audio(samplebuf, length);
-
+    // Match the documented check_stop() contract (return as soon as you
+    // decide to stop, without writing further audio) instead of writing one
+    // more buffer after already having decided the track is over.
     if (play_time > (track_time + fade_time)) {
 	cpu_running = 0;
+	return;
     }
+
+    write_audio(samplebuf, length);
 }
 
 void USFPlugin::ai_len_changed(){
