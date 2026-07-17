@@ -283,7 +283,7 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
 bool usf_init()
 {
     use_audiohle = 0;
-    use_interpreter = 1;
+    use_interpreter = 0;
     RSP_Cpu = 0;		// 0 is recompiler, 1 is interpreter
 
     return true;
