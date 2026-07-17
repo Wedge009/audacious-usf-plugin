@@ -10,6 +10,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 
+#include <libaudcore/drct.h>
+#include <libaudcore/mainloop.h>
+
 bool usf_playing;
 int32_t SampleRate = 0;
 int16_t samplebuf[16384];
@@ -61,8 +64,39 @@ bool USFPlugin::read_tag (const char * filename, VFSFile & file, Tuple & tuple, 
     return true;
 }
 
+// Audacious's own "track ended, advance to the next one" handoff (queuing
+// end_cb() from the playback thread, which then calls playlist.next_song())
+// is gated behind an in_sync() check tying it to a serial number shared with
+// the main thread. We've observed that gate silently never open - play()
+// returns cleanly, but nothing further ever happens automatically: no
+// probing of the next track, no further play() call, nothing - even though
+// the playlist position/title can still update via some other path. This
+// timer is a safety net, not a replacement: ~750ms after any play() call
+// returns, check whether playback actually is happening: if so (the normal
+// case), do nothing; if the playlist has legitimately run out (position
+// -1, mirroring how Audacious itself signals "reached end of playlist") do
+// nothing; otherwise explicitly (re)start playback at the current position,
+// the same call a user manually pressing play would trigger - a path we've
+// confirmed works reliably where the automatic one does not.
+//
+// drct.h functions are documented as not thread-safe, so this must not run
+// directly on our decode thread; QueuedFunc is the documented way to safely
+// call back into the main thread from a worker thread.
+static QueuedFunc stall_recovery;
+
+static void check_for_stalled_advance()
+{
+    if (aud_drct_get_playing())
+	return;
+    if (aud_drct_get_position() < 0)
+	return;
+    aud_drct_play();
+}
+
 bool USFPlugin::play (const char * filename, VFSFile & file){
-    return usf_play(this, filename, &file);
+    bool result = usf_play(this, filename, &file);
+    stall_recovery.queue(750, check_for_stalled_advance);
+    return result;
 }
 
 
