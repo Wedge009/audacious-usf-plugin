@@ -1253,12 +1253,12 @@ void r4300i_COP1_BCTL(void)
 /************************** COP1: S functions ************************/
 void Float_RoundToInteger32(int32_t * Dest, float *Source)
 {
-    *Dest = (int32_t) * Source;
+    asm volatile ("flds %1\n\tfistpl %0":"=m" (*Dest):"m"(*Source));
 }
 
 void Float_RoundToInteger64(int64_t * Dest, float *Source)
 {
-    *Dest = (int64_t) * Source;
+    asm volatile ("flds %1\n\tfistpll %0":"=m" (*Dest):"m"(*Source));
 }
 
 void r4300i_COP1_S_ADD(void)
@@ -1324,7 +1324,7 @@ void r4300i_COP1_S_NEG(void)
 void r4300i_COP1_S_TRUNC_L(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_CHOP,_MCW_RC);
+	controlfp(_FPU_RC_ZERO);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1332,7 +1332,7 @@ void r4300i_COP1_S_TRUNC_L(void)
 void r4300i_COP1_S_CEIL_L(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_UP,_MCW_RC);
+	controlfp(_FPU_RC_UP);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1340,7 +1340,7 @@ void r4300i_COP1_S_CEIL_L(void)
 void r4300i_COP1_S_FLOOR_L(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_DOWN,_MCW_RC);
+	controlfp(_FPU_RC_DOWN);
 	Float_RoundToInteger64(&*(int64_t *) FPRDoubleLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1348,7 +1348,7 @@ void r4300i_COP1_S_FLOOR_L(void)
 void r4300i_COP1_S_ROUND_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_NEAREST,_MCW_RC);
+	controlfp(_FPU_RC_NEAREST);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1356,7 +1356,7 @@ void r4300i_COP1_S_ROUND_W(void)
 void r4300i_COP1_S_TRUNC_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_CHOP,_MCW_RC);
+	controlfp(_FPU_RC_ZERO);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1364,7 +1364,7 @@ void r4300i_COP1_S_TRUNC_W(void)
 void r4300i_COP1_S_CEIL_W(void)
 {				//added by Witten
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_RC_UP,_MCW_RC);
+	controlfp(_FPU_RC_UP);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1372,7 +1372,7 @@ void r4300i_COP1_S_CEIL_W(void)
 void r4300i_COP1_S_FLOOR_W(void)
 {
     TEST_COP1_USABLE_EXCEPTION
-	//_controlfp(_FPU_RC_DOWN,_MCW_RC);
+	controlfp(_FPU_RC_DOWN);
 	Float_RoundToInteger32(&*(int32_t *) FPRFloatLocation[Opcode.fd],
 			       &*(float *) FPRFloatLocation[Opcode.fs]);
 }
@@ -1436,12 +1436,12 @@ void r4300i_COP1_S_CMP(void)
 /************************** COP1: D functions ************************/
 void Double_RoundToInteger32(int32_t * Dest, double *Source)
 {
-    *Dest = (int32_t) * Source;
+    asm volatile ("fldl %1\n\tfistpl %0":"=m" (*Dest):"m"(*Source));
 }
 
 void Double_RoundToInteger64(int64_t * Dest, double *Source)
 {
-    *Dest = (int64_t) * Source;
+    asm volatile ("fldl %1\n\tfistpll %0":"=m" (*Dest):"m"(*Source));
 }
 
 void r4300i_COP1_D_ADD(void)
