@@ -453,7 +453,7 @@ Tuple usf_get_song_tuple(const gchar * fn, VFSFile * fil)
     tuple.set_filename(fn);
 
     if (tagsize) {
-	int temp_fade = 0;
+	int temp_fade = 5000;
 	usf_fseek(fil, tagstart, VFS_SEEK_SET);
 	usf_fread(buffer, 5, 1, fil);
 
@@ -535,7 +535,7 @@ Tuple usf_get_song_tuple(const gchar * fn, VFSFile * fil)
 	strcpy(title, &fn[pathlength]);
 
 
-        tuple.set_int(Tuple::Length, 180*1000);
+        tuple.set_int(Tuple::Length, 180*1000 + 5000);
         tuple.set_str (Tuple::Title, title           );
     }
 
