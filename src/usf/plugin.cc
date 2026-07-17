@@ -60,14 +60,6 @@ bool USFPlugin::play (const char * filename, VFSFile & file){
 
 void USFPlugin::open_sound(){
     open_audio(FMT_S16_NE, SampleRate, 2);
-    /*
-    if (open_audio(FMT_S16_NE, SampleRate, 2)) {
-	cpu_running = 0;
-	printf("Fail Starting audio\n");
-	g_thread_exit(NULL);
-    } else {
-    }
-    */
 }
 
 void USFPlugin::add_buffer(unsigned char *buf, unsigned int length){
@@ -76,9 +68,11 @@ void USFPlugin::add_buffer(unsigned char *buf, unsigned int length){
 		return;
 	}
 
-    if(check_seek() != -1){        
+    int seek_ms = check_seek();
+    if (seek_ms != -1) {
+	usf_mseek(this, seek_ms);
     }
-	
+
     int32_t i = 0, out = 0;
     double vol = 1.0;
 

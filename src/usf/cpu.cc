@@ -581,7 +581,7 @@ void StartEmulationFromSave(void *savestate)
 	memset(DelaySlotTable, 0, ((0x1000000) >> 0xA));
     }
 
-    memset(CPU_Action, 0, sizeof(CPU_Action));
+    memset(CPU_Action, 0, sizeof(*CPU_Action));
     WrittenToRom = 0;
 
     InitilizeTLB();
@@ -609,7 +609,16 @@ void StartEmulationFromSave(void *savestate)
 
     SampleRate = 48681812 / (AI_DACRATE_REG + 1);
 
-    context->open_sound();
+    // Only (re)open the output stream on the very first start of this track.
+    // fake_seek_stopping is still nonzero here when we're restarting
+    // emulation after a backward seek (it isn't cleared until below); Audacious
+    // treats a fresh open_audio() as the start of a new stream and resets its
+    // displayed playback position to 0, which would make the progress bar
+    // jump back to the beginning even though play_time/seek_time have already
+    // fast-forwarded past the seek target.
+    if (!fake_seek_stopping) {
+	context->open_sound();
+    }
 
     ///////////////////////////////////////////////  pcontext->set_params(pcontext, SampleRate * 4, SampleRate, 2);
 
