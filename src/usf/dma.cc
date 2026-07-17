@@ -170,9 +170,6 @@ void SP_DMA_READ(void)
 
     SP_DMA_BUSY_REG = 0;
     SP_STATUS_REG &= ~SP_STATUS_DMA_BUSY;
-    MI_INTR_REG &= ~MI_INTR_SP;
-    CheckInterrupts();
-    CheckTimer();
 }
 
 void SP_DMA_WRITE(void)
