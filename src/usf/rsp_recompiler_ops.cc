@@ -5035,6 +5035,8 @@ void RSPCompile_UnknownOpcode(void)
     RSPNextInstruction = FINISH_BLOCK;
     RSPMoveConstToVariable(RSPCompilePC, PrgCount);
     RSPMoveConstToVariable(RSPOpC.Hex, &RSPOpC.Hex);
+    RSPPushad();
     RSPCall_Direct((void*)rsp_UnknownOpcode);
+    RSPPopad();
     RSPRet();
 }
