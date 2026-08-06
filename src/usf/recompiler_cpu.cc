@@ -3646,8 +3646,10 @@ void CallBlock(void (*block) (void))
 {
 
 #ifdef USEX64
-    // Make sure the Memory block pointer is in register R15
-    __asm__ __volatile__("mov %%rax, %%r15"::"a"(MemChunk));
+    // Save the caller's original register values *before* clobbering any of
+    // them -- R15 in particular must be saved before we overwrite it below,
+    // otherwise this restores the wrong value (MemChunk) instead of whatever
+    // the caller actually had in R15, silently corrupting it on every call.
     __asm__ __volatile__("pushq %rbx");
     __asm__ __volatile__("pushq %rcx");
     __asm__ __volatile__("pushq %rdx");
@@ -3658,6 +3660,9 @@ void CallBlock(void (*block) (void))
     __asm__ __volatile__("pushq %r13");
     __asm__ __volatile__("pushq %r14");
     __asm__ __volatile__("pushq %r15");
+
+    // Make sure the Memory block pointer is in register R15
+    __asm__ __volatile__("mov %%rax, %%r15"::"a"(MemChunk));
 
     block();
 
