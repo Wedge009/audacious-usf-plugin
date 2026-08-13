@@ -1,6 +1,8 @@
 #ifndef _PLUGIN_H_
 #define _PLUGIN_H_
 
+#include <mutex>
+
 #include <libaudcore/plugin.h>
 #include <libaudcore/i18n.h>
 #include <libaudcore/preferences.h>
@@ -41,5 +43,16 @@ extern bool usf_playing;
 extern int32_t SampleRate;
 extern int16_t samplebuf[16384];
 extern USFPlugin* context;
+
+// LoadUSF()/PreAllocate_Memory()/Allocate_Memory()/Release_Memory() operate on
+// a single shared set of global emulator buffers (savestatespace, ROMPages,
+// MemChunk, N64MEM, ...) ported straight from PJ64, which never had to support
+// more than one file at a time. Audacious' play-list scanner runs is_our_file()
+// for multiple files concurrently (SCAN_THREADS in libaudcore/scanner.cc), and
+// concurrent probes race on those globals - one thread's PreAllocate_Memory()
+// can overwrite the pointer another thread is about to free in Release_Memory(),
+// corrupting the heap. Both is_our_file() and play() must hold this lock for
+// their entire body so only one file at a time ever touches that shared state.
+extern std::mutex g_usf_state_mutex;
 
 #endif /* _PLUGIN_H_ */
