@@ -113,8 +113,8 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
     }
 
     usf_fread(buffer, 4, 1, fil);
-    if (buffer[0] != 'P' && buffer[1] != 'S' && buffer[2] != 'F'
-	&& buffer[3] != 0x21) {
+    if (buffer[0] != 'P' || buffer[1] != 'S' || buffer[2] != 'F'
+	|| buffer[3] != 0x21) {
 	printf("USF: Invalid header in file!\n");
 	return 0;
     }
@@ -134,8 +134,8 @@ int LoadUSF(const gchar * fn, VFSFile * fil)
 	usf_fseek(fil, tagstart, VFS_SEEK_SET);
 	usf_fread(buffer, 5, 1, fil);
 
-	if (buffer[0] != '[' && buffer[1] != 'T' && buffer[2] != 'A'
-	    && buffer[3] != 'G' && buffer[4] != ']') {
+	if (buffer[0] != '[' || buffer[1] != 'T' || buffer[2] != 'A'
+	    || buffer[3] != 'G' || buffer[4] != ']') {
 	    printf("USF: Erroneous data in tag area! %" PRIu32 "\n", tagsize);
 	    return 0;
 	}
@@ -322,6 +322,11 @@ void usf_mseek(USFPlugin * context, gint millisecond)
 
 bool usf_play(USFPlugin* context, const gchar * filename, VFSFile* file)
 {
+    // See g_usf_state_mutex in plugin.h - serialises against concurrent
+    // is_our_file() probes (and other tracks' play()) on the same shared
+    // emulator memory globals.
+    std::lock_guard<std::mutex> lock(g_usf_state_mutex);
+
     // Defaults (which would be overriden by Tags / playing
     savestatespace = NULL;
     cpu_running = is_paused = fake_seek_stopping = 0;
@@ -401,8 +406,8 @@ Tuple usf_get_song_tuple(const gchar * fn, VFSFile * fil)
 
     usf_fread(buffer, 4, 1, fil);
 
-    if (buffer[0] != 'P' && buffer[1] != 'S' && buffer[2] != 'F'
-	&& buffer[3] != 0x21) {
+    if (buffer[0] != 'P' || buffer[1] != 'S' || buffer[2] != 'F'
+	|| buffer[3] != 0x21) {
 	printf("USF: Invalid header in file!\n");
 	return tuple;
     }
@@ -425,8 +430,8 @@ Tuple usf_get_song_tuple(const gchar * fn, VFSFile * fil)
 	usf_fseek(fil, tagstart, VFS_SEEK_SET);
 	usf_fread(buffer, 5, 1, fil);
 
-	if (buffer[0] != '[' && buffer[1] != 'T' && buffer[2] != 'A'
-	    && buffer[3] != 'G' && buffer[4] != ']') {
+	if (buffer[0] != '[' || buffer[1] != 'T' || buffer[2] != 'A'
+	    || buffer[3] != 'G' || buffer[4] != ']') {
 	    printf("USF: Erroneous data in tag area! %" PRIu32 "\n", tagsize);
 	    return tuple;
 	}

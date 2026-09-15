@@ -17,6 +17,7 @@ bool usf_playing;
 int32_t SampleRate = 0;
 int16_t samplebuf[16384];
 USFPlugin *context;
+std::mutex g_usf_state_mutex;
 
 //EXPORT USFPlugin aud_plugin_instance;
 __attribute__((visibility("default"))) USFPlugin aud_plugin_instance;
@@ -36,6 +37,11 @@ void USFPlugin::cleanup (){
 }
 
 bool USFPlugin::is_our_file (const char * filename, VFSFile & file){
+    // See g_usf_state_mutex in plugin.h - this may run concurrently with
+    // another file's is_our_file()/play() on Audacious' scanner threads, but
+    // LoadUSF()/PreAllocate_Memory()/Release_Memory() share global state.
+    std::lock_guard<std::mutex> lock(g_usf_state_mutex);
+
     // LoadUSF() writes into the global savestatespace buffer whenever the
     // file has an embedded savestate section (true of every real USF/miniusf
     // file), so it must not run without PreAllocate_Memory() first having
